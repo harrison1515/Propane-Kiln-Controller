@@ -1,0 +1,332 @@
+
+#include <Adafruit_RGBLCDShield.h>
+#include <Wire.h>
+#include "Adafruit_MAX31855.h"
+#include <Stepper.h>
+#include <Adafruit_MCP23017.h>
+
+int thermoCLK = 7;
+int thermoCS = 6;
+int thermoDO = 5;
+const int stepsPerRevolution = 50;
+Stepper myStepper(stepsPerRevolution, 9,10,11,12);  // initialize the stepper library on pins 9 through 12:    
+int stepCount = 0;
+
+Adafruit_MAX31855 thermocouple(thermoCLK, thermoCS, thermoDO);   // Initialize the Thermocouple
+Adafruit_RGBLCDShield lcd = Adafruit_RGBLCDShield();    // initialize the library with the numbers of the interface pins
+
+float initialTemp;
+float elapsedTime;
+float KilnTemp;
+int ProgramTime;
+int Time;
+
+float SetPointTemp1 = 1250.0;
+float SetPointTime1 = 11250;
+float HoldTime1 = 13050;        //1800 second hold time
+
+float SetPointTemp2 = 1410.0;
+float SetPointTime2 = 14010;
+float HoldTime2 = 14610;        //600 second hold time
+
+float SetPointTemp3 = 960.0;
+float SetPointTime3 = 14850;    //4 min
+float HoldTime3 = 16650;         //1800 second hold time
+
+double variableTemp1 = 1410.0;     //same as SetPointTemp2
+
+float ramp1 = SetPointTemp1 / SetPointTime1;      //ramp is the temperature increase every second
+float ramp2 = (SetPointTemp2 - SetPointTemp1) / (SetPointTime2 - HoldTime1);      //ramp is the temperature increase every second
+
+int spark = 1;
+
+void setup() {
+
+  lcd.begin(16, 2);
+  myStepper.step(1);
+  myStepper.step(1);
+  myStepper.step(-1);
+  myStepper.step(-1);
+  delay(5000);
+  initialTemp = thermocouple.readFarenheit();
+  ProgramTime = initialTemp / ramp1;
+  lcd.setCursor(0,0);
+  lcd.print(initialTemp);
+  pinMode(spark, OUTPUT);
+  }
+
+void loop() {
+
+  elapsedTime = millis()/1000;     //time in seconds from when the program started
+  Time = elapsedTime + ProgramTime;
+  lcd.setCursor(11, 0);
+  lcd.print(Time);   
+  lcd.setCursor(0, 0);
+  float input = thermocouple.readFarenheit();   //read the current temperature
+  lcd.print(input);      //print the current temperature
+  lcd.setCursor(2, 1);
+  lcd.print(stepCount);
+  delay(900);
+  
+  elapsedTime = millis()/1000;     //time in seconds from when the program started
+  Time = elapsedTime + ProgramTime;
+  lcd.setCursor(11, 0);
+  lcd.print(Time);   
+  lcd.setCursor(0, 0);
+  input = thermocouple.readFarenheit();   //read the current temperature
+  lcd.print(input);      //print the current temperature
+  delay(900);
+  
+  elapsedTime = millis()/1000;     //time in seconds from when the program started
+  Time = elapsedTime + ProgramTime;
+  lcd.setCursor(11, 0);
+  lcd.print(Time);   
+  lcd.setCursor(0, 0);
+  input = thermocouple.readFarenheit();   //read the current temperature
+  lcd.print(input);      //print the current temperature
+  delay(900);
+  
+  elapsedTime = millis()/1000;     //time in seconds from when the program started
+  Time = elapsedTime + ProgramTime;
+  lcd.setCursor(11, 0);
+  lcd.print(Time);   
+  lcd.setCursor(0, 0);
+  input = thermocouple.readFarenheit();   //read the current temperature
+  lcd.print(input);      //print the current temperature
+  delay(900);
+  
+  elapsedTime = millis()/1000;     //time in seconds from when the program started
+  Time = elapsedTime + ProgramTime;
+  lcd.setCursor(11, 0);
+  lcd.print(Time);   
+  lcd.setCursor(0, 0);
+  input = thermocouple.readFarenheit();   //read the current temperature
+  lcd.print(input);      //print the current temperature
+  delay(900);
+  
+  digitalWrite(spark, LOW);
+  elapsedTime = millis()/1000;     //time in seconds from when the program started
+  Time = elapsedTime + ProgramTime;
+  lcd.setCursor(11, 0);
+  lcd.print(Time);   
+  lcd.setCursor(0, 0);
+  input = thermocouple.readFarenheit();   //read the current temperature
+  lcd.print(input);      //print the current temperature
+  delay(900);
+  
+  
+    //////////// FIRST PHASE -- SLOW HEATING //////////////
+
+  if (Time < SetPointTime1){
+    lcd.setCursor(10, 1);
+    double difference1 = input / Time;       
+    lcd.print(difference1); //print the current difference
+    if (difference1 < ramp1 && stepCount <15)
+    { 
+      if (stepCount <=1)
+      {
+        digitalWrite(spark, HIGH);
+        myStepper.step(1);
+        stepCount++;
+      }
+      else
+      {
+        myStepper.step(1);
+        stepCount++; 
+      }
+    } 
+    if (difference1 > ramp1 && stepCount >0)
+    { 
+      myStepper.step(-1);
+      stepCount--;
+    }
+    if (difference1 == ramp1)
+    {
+      myStepper.step(0); 
+    }
+    lcd.clear();
+    lcd.setCursor(10, 1);
+    lcd.print(difference1); //print the current difference
+     }
+
+  //////////// FIRST HOLDING PHASE //////////////
+
+  if (Time < HoldTime1 && Time > SetPointTime1){
+    if (input < SetPointTemp1 && stepCount <15)
+    { 
+      if (stepCount <=1)
+      {
+        digitalWrite(spark, HIGH);
+        myStepper.step(1);
+        stepCount++;
+      }
+      else
+      {
+        myStepper.step(1);
+        stepCount++; 
+      }
+    } 
+    if (input > SetPointTemp1 && stepCount >0)
+    { 
+      myStepper.step(-1);
+      stepCount--;
+    }
+    if (input == SetPointTemp1)
+    {
+      myStepper.step(0); 
+    }
+    lcd.clear();
+    lcd.setCursor(6, 1);
+    lcd.print("First Hold");
+  }
+
+  //////////// SECOND PHASE -- RAPID HEATING //////////////
+
+  if (Time > HoldTime1 && Time < SetPointTime2){
+    lcd.setCursor(10, 1);
+    double difference2 = ((input - SetPointTemp1) / (Time - HoldTime1)) ;       //difference is the current temperature divided by the current time which should be equal to the ramp if the kiln is heating at the correct rate     
+    lcd.print(difference2); //print the current difference
+    if (difference2 < ramp2 && stepCount <15)
+    { 
+      if (stepCount <=1)
+      {
+        digitalWrite(spark, HIGH);
+        myStepper.step(1);
+        stepCount++;
+      }
+      else
+      {
+        myStepper.step(1);
+        stepCount++; 
+      }
+    } 
+    if (difference2 > ramp2 && stepCount >0)
+    { 
+      myStepper.step(-1);
+      stepCount--;
+    }
+    if (difference2 == ramp2)
+    {
+      myStepper.step(0);
+    }
+    lcd.clear();
+    lcd.setCursor(10, 1);
+    lcd.print(difference2);
+  }
+
+
+  //////////// SECOND HOLDING PHASE //////////////
+
+  if (Time < HoldTime2 && Time > SetPointTime2){
+    if (input < SetPointTemp2 && stepCount <15)
+    { 
+      if (stepCount <=1)
+      {
+        digitalWrite(spark, HIGH);
+        myStepper.step(1);
+        stepCount++;
+      }
+      else
+      {
+        myStepper.step(1);
+        stepCount++; 
+      }
+    } 
+    if (input > SetPointTemp2 && stepCount >0)
+    { 
+      myStepper.step(-1);
+      stepCount--;
+    }
+    if (input == SetPointTemp2)
+    {
+      myStepper.step(0); 
+    }
+    lcd.clear();
+    lcd.setCursor(5, 1);     
+    lcd.print("Second Hold");
+  }
+
+  //////////// THIRD PHASE -- RAPID COOLING //////////////
+
+  if (Time > HoldTime2 && Time < SetPointTime3){
+    lcd.setCursor(6, 1);     
+    lcd.print(variableTemp1);
+    if (variableTemp1 > input && stepCount <15)
+    { 
+      if (stepCount <=1)
+      {
+        digitalWrite(spark, HIGH);
+        myStepper.step(1);
+        stepCount++;
+      }
+      else
+      {
+        myStepper.step(1);
+        stepCount++; 
+      }
+    } 
+    if (variableTemp1 < input && stepCount >0)
+    { 
+      myStepper.step(-1);
+      stepCount--;
+    }
+    if (variableTemp1 == input)
+    {
+      myStepper.step(0); 
+    }
+    lcd.clear();
+    lcd.setCursor(6, 1);     
+    lcd.print(variableTemp1);
+    variableTemp1 -= 9.5;
+  }
+
+  //////////// THIRD HOLDING PHASE //////////////
+
+  if (Time < HoldTime3 && Time > SetPointTime3){
+    if (input < SetPointTemp3 && stepCount <15)
+    { 
+      if (stepCount <=1)
+      {
+        digitalWrite(spark, HIGH);
+        myStepper.step(1);
+        stepCount++;
+      }
+      else
+      {
+        myStepper.step(1);
+        stepCount++; 
+      }
+    } 
+    if (input > SetPointTemp3 && stepCount >0)
+    { 
+      myStepper.step(-1);
+      stepCount--;
+    }
+    if (input == SetPointTemp3)
+    {
+      myStepper.step(0); 
+    }
+    lcd.clear();
+    lcd.setCursor(10, 1);     
+    lcd.print("A16650");
+  }
+
+  ///////////// KILN SHUT OFF ////////////////////
+
+  if (Time > HoldTime3){
+    lcd.setCursor(6, 1);
+    if (stepCount >= -1)
+    {
+      myStepper.step(-1);
+      stepCount--;
+    }
+    if (stepCount == 0){
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      input = thermocouple.readFarenheit();
+      lcd.print(input);      //print the current temperature
+      lcd.setCursor(8, 1);
+      lcd.print("FINISHED");
+    }
+  }
+}
